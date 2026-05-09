@@ -1,6 +1,5 @@
 # app/agents/state.py
 # Purpose: defines the shared state that flows through every node in the graph
-# Interview point: LangGraph passes this state object between every agent.
 # Each agent reads what it needs and writes its results back.
 # This is how A2A (agent-to-agent) communication works in LangGraph —
 # not direct function calls, but shared state mutations.
