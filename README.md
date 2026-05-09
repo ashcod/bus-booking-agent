@@ -15,13 +15,13 @@ A production-grade multi-agent AI system that adds a conversational booking inte
 ### Home screen
 ![Home Screen](screenshots/UI_Screenshots_Home.png)
 
-### Bus search results
+### Bus search Agent
 ![Bus Search Results](screenshots/UI_Screenshots_1.png)
 
-### Seat map selection
+### Booking Agent
 ![Seat Map](screenshots/UI_Screenshots_2.png)
 
-### Booking confirmation
+### Cancellation Agent
 ![Booking Confirmation](screenshots/UI_Screenshots_3.png)
 
 ---
