@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BusBot — India Bus Booking</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f5;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.container{width:100%;max-width:720px;height:92vh;background:white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);display:flex;flex-direction:column;overflow:hidden}
+.header{padding:14px 20px;background:#e84640;color:white;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.header-icon{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.header-text h1{font-size:16px;font-weight:600}
+.header-text p{font-size:12px;opacity:.85;margin-top:2px}
+.status-dot{width:8px;height:8px;background:#4ade80;border-radius:50%;margin-left:auto}
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.message{display:flex;gap:10px;max-width:90%;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.message.user{align-self:flex-end;flex-direction:row-reverse}
+.message.bot{align-self:flex-start}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.message.bot .avatar{background:#fee2e2;color:#e84640}
+.message.user .avatar{background:#e84640;color:white}
+.bubble{padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.6;white-space:pre-wrap}
+.message.bot .bubble{background:#f3f4f6;color:#111;border-bottom-left-radius:4px}
+.message.user .bubble{background:#e84640;color:white;border-bottom-right-radius:4px}
+.agent-badge{font-size:10px;color:#9ca3af;margin-top:4px;padding-left:42px;text-transform:capitalize}
+.typing .bubble{display:flex;gap:4px;align-items:center;padding:12px 16px}
+.dot{width:7px;height:7px;background:#9ca3af;border-radius:50%;animation:bounce 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+.chips-row{display:flex;flex-wrap:wrap;gap:7px;padding:0 20px 10px;flex-shrink:0}
+.chip{padding:5px 13px;border:1.5px solid #e84640;color:#e84640;border-radius:20px;font-size:12px;cursor:pointer;background:white;transition:all .15s;white-space:nowrap}
+.chip:hover{background:#e84640;color:white}
+.input-area{padding:12px 16px;border-top:1px solid #f0f0f0;display:flex;gap:10px;align-items:flex-end;flex-shrink:0}
+textarea{flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:120px;line-height:1.5;transition:border-color .15s}
+textarea:focus{border-color:#e84640}
+button#send{width:42px;height:42px;background:#e84640;color:white;border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:background .15s}
+button#send:hover{background:#c73530}
+button#send:disabled{background:#d1d5db;cursor:not-allowed}
+.welcome{text-align:center;padding:32px 20px;color:#6b7280}
+.welcome h2{font-size:20px;color:#111;margin-bottom:8px}
+.welcome p{font-size:14px;line-height:1.6}
+
+/* bus result cards */
+.bus-results{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:4px}
+.bus-card{background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s}
+.bus-card:hover{border-color:#e84640}
+.bus-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.bus-card-name{font-size:14px;font-weight:500;color:#111}
+.bus-card-days{font-size:11px;color:#9ca3af;margin-top:2px}
+.seat-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
+.badge-ac-sleeper{background:#fef3c7;color:#92400e}
+.badge-sleeper{background:#dbeafe;color:#1e40af}
+.badge-ac-seater{background:#d1fae5;color:#065f46}
+.badge-seater{background:#f3f4f6;color:#374151}
+.bus-route-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.route-time{font-size:16px;font-weight:500;color:#111}
+.route-arrow{color:#d1d5db;font-size:12px}
+.route-duration{font-size:11px;color:#9ca3af;background:#f9fafb;padding:2px 8px;border-radius:20px}
+.bus-card-footer{display:flex;justify-content:space-between;align-items:center}
+.bus-price{font-size:16px;font-weight:600;color:#111}
+.bus-seats-left{font-size:12px;color:#6b7280}
+.seats-low{color:#e84640;font-weight:500}
+.btn-select{padding:6px 16px;background:#e84640;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;transition:background .15s}
+.btn-select:hover{background:#c73530}
+
+/* seat map */
+.seat-map-wrap{background:white;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;width:100%;margin-top:4px}
+.seat-map-header{background:#f9fafb;border-bottom:0.5px solid #e5e7eb;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.seat-map-title{font-size:13px;font-weight:500;color:#111}
+.deck-toggle{display:flex;gap:0;border:0.5px solid #e5e7eb;border-radius:8px;overflow:hidden}
+.deck-btn{padding:4px 12px;font-size:12px;cursor:pointer;background:white;border:none;color:#6b7280;transition:all .15s}
+.deck-btn.active{background:#e84640;color:white}
+.bus-body{display:flex;flex-direction:column;align-items:center;padding:12px}
+.driver-row{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:6px 10px;background:#f9fafb;border-radius:8px;font-size:11px;color:#9ca3af}
+.seat-layout{display:flex;flex-direction:column;gap:3px;width:100%}
+.seat-row{display:flex;align-items:center;gap:3px;justify-content:center}
+.row-label{width:18px;font-size:10px;color:#9ca3af;text-align:right;flex-shrink:0}
+.seat-pair{display:flex;gap:3px}
+.aisle-gap{width:20px}
+.seat{width:34px;height:36px;border-radius:5px;border:1.5px solid #e5e7eb;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;color:#6b7280;background:white;flex-shrink:0}
+.seat .s-num{font-size:10px;font-weight:500;line-height:1;color:#374151}
+.seat .s-tag{font-size:8px;line-height:1;margin-top:1px}
+.seat.win-seat{border-top:3px solid #93c5fd}
+.seat.win-seat .s-tag{color:#1e40af}
+.seat.avail:hover{border-color:#e84640;background:#fef2f2}
+.seat.avail:hover .s-num{color:#e84640}
+.seat.bk-f{background:#fdf2f8;border-color:#f0abfc;cursor:not-allowed}
+.seat.bk-f .s-num{color:#701a75}
+.seat.bk-f .s-tag{color:#a21caf}
+.seat.bk-m{background:#eff6ff;border-color:#93c5fd;cursor:not-allowed}
+.seat.bk-m .s-num{color:#1e3a8a}
+.seat.bk-m .s-tag{color:#1d4ed8}
+.seat.sel{background:#e84640;border-color:#e84640;cursor:pointer}
+.seat.sel .s-num{color:white}
+.seat.sel .s-tag{color:rgba(255,255,255,.85)}
+.seat-legend{display:flex;flex-wrap:wrap;gap:10px;padding:8px 14px;border-top:0.5px solid #f0f0f0}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280}
+.leg-swatch{width:14px;height:14px;border-radius:3px;border:1.5px solid #e5e7eb;flex-shrink:0}
+.leg-swatch.lw{border-top:3px solid #93c5fd}
+.leg-swatch.lf{background:#fdf2f8;border-color:#f0abfc}
+.leg-swatch.lm{background:#eff6ff;border-color:#93c5fd}
+.leg-swatch.ls{background:#e84640;border:none}
+.seat-map-footer{padding:10px 14px;border-top:0.5px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.selected-info{font-size:13px;color:#6b7280}
+.selected-info span{font-weight:500;color:#111}
+.btn-proceed{padding:7px 18px;background:#e84640;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;opacity:.4;pointer-events:none;transition:all .15s}
+.btn-proceed.on{opacity:1;pointer-events:auto}
+
+/* confirm card */
+.confirm-card{background:white;border:0.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;width:100%;margin-top:4px}
+.confirm-title{font-size:14px;font-weight:500;margin-bottom:12px;color:#111}
+.confirm-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:0.5px solid #f0f0f0}
+.confirm-row:last-of-type{border:none}
+.c-label{color:#6b7280}
+.c-val{font-weight:500;color:#111}
+.confirm-total{display:flex;justify-content:space-between;font-size:15px;font-weight:600;padding:10px 0 4px;border-top:1.5px solid #e5e7eb;margin-top:6px}
+.gender-row{display:flex;gap:8px;margin:10px 0}
+.gender-btn{flex:1;padding:7px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;cursor:pointer;background:white;color:#6b7280;transition:all .15s}
+.gender-btn.active{border-color:#e84640;color:#e84640;background:#fef2f2}
+.btn-confirm-booking{width:100%;padding:11px;background:#e84640;color:white;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-top:10px;transition:background .15s}
+.btn-confirm-booking:hover{background:#c73530}
+.btn-back{width:100%;padding:9px;background:transparent;color:#6b7280;border:0.5px solid #e5e7eb;border-radius:10px;font-size:13px;cursor:pointer;margin-top:6px}
+
+/* ticket */
+.ticket-wrap{background:white;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;width:100%;margin-top:4px}
+.ticket-head{background:#e84640;color:white;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start}
+.ticket-head-left h3{font-size:15px;font-weight:600;margin-bottom:2px}
+.ticket-head-left p{font-size:12px;opacity:.85}
+.ticket-head-right{text-align:right}
+.ticket-head-right .bk-id{font-size:13px;font-weight:600}
+.ticket-head-right .bk-label{font-size:10px;opacity:.7}
+.ticket-route{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:0.5px dashed #e5e7eb}
+.ticket-city .tname{font-size:20px;font-weight:600;color:#111}
+.ticket-city .ttime{font-size:13px;color:#6b7280;margin-top:2px}
+.ticket-dash{flex:1;border-top:1.5px dashed #e5e7eb;margin:0 14px}
+.ticket-details{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;border-bottom:0.5px dashed #e5e7eb}
+.t-detail .t-label{font-size:11px;color:#9ca3af;margin-bottom:2px}
+.t-detail .t-val{font-size:13px;font-weight:500;color:#111}
+.ticket-foot{padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.ticket-note{font-size:11px;color:#9ca3af}
+.btn-pdf{display:flex;align-items:center;gap:5px;font-size:12px;color:#e84640;border:1.5px solid #e84640;background:white;padding:6px 14px;border-radius:8px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-icon">&#128652;</div>
+    <div class="header-text">
+      <h1>BusBot</h1>
+      <p>India Bus Booking Assistant</p>
+    </div>
+    <div class="status-dot"></div>
+  </div>
+  <div class="messages" id="messages">
+    <div class="welcome">
+      <h2>Plan your journey</h2>
+      <p>Find and book buses across 15 major Indian cities.</p>
+    </div>
+  </div>
+  <div class="chips-row" id="chips"></div>
+  <div class="input-area">
+    <textarea id="input" rows="1" placeholder="Ask about buses, fares, bookings..."
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send" onclick="sendMessage()">&#10148;</button>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+const SESSION_ID = "session-" + Math.random().toString(36).slice(2,9);
+let isTyping = false;
+let bookingState = {scheduleId:null, busName:null, dep:null, arr:null, price:null, seatNum:null, gender:"M", hasUpper:false, deck:"lower"};
+
+const CHIP_SETS = {
+  welcome:[
+    {label:"Hyd to Bangalore", text:"Buses from Hyderabad to Bangalore"},
+    {label:"Hyd to Chennai",   text:"Buses from Hyderabad to Chennai"},
+    {label:"Hyd to Mumbai",    text:"Buses from Hyderabad to Mumbai"},
+    {label:"Hyd to Pune",      text:"Buses from Hyderabad to Pune"},
+    {label:"Delhi to Jaipur",  text:"Buses from Delhi to Jaipur"},
+    {label:"Refund policy",    text:"What is your refund policy?"},
+  ],
+  confirm_origin:[
+    {label:"Yes, Hyderabad",   text:"Yes, from Hyderabad"},
+    {label:"No, from Mumbai",  text:"No, from Mumbai"},
+    {label:"No, from Delhi",   text:"No, from Delhi"},
+    {label:"No, from Chennai", text:"No, from Chennai"},
+  ],
+  time_preference:[
+    {label:"Morning",    text:"morning"},
+    {label:"Afternoon",  text:"afternoon"},
+    {label:"Evening",    text:"evening"},
+    {label:"Night",      text:"night"},
+    {label:"Show all",   text:"show all"},
+  ],
+  after_results:[
+    {label:"Cheaper options",  text:"Show me cheaper options"},
+    {label:"AC buses only",    text:"Show only AC buses"},
+    {label:"Sleeper only",     text:"Show only sleeper buses"},
+    {label:"Show all buses",   text:"show all buses"},
+  ],
+  support:[
+    {label:"Cancel booking",  text:"I want to cancel my booking"},
+    {label:"Refund status",   text:"What is my refund status?"},
+    {label:"Contact support", text:"How do I contact support?"},
+  ]
+};
+
+function detectChipContext(botMsg, agent) {
+  const m = botMsg.toLowerCase();
+  if(agent==="clarification" && m.includes("departing from")) return "confirm_origin";
+  if(agent==="clarification" && m.includes("time preference"))  return "time_preference";
+  if(agent==="search" && m.includes("book"))                    return "after_results";
+  if(agent==="support")                                         return "support";
+  return null;
+}
+
+function renderChips(ctx) {
+  const row = document.getElementById("chips");
+  row.innerHTML = "";
+  (CHIP_SETS[ctx]||[]).forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = c.label;
+    b.onclick = () => sendQuick(c.text);
+    row.appendChild(b);
+  });
+}
+
+function autoResize(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight,120)+"px";
+}
+function handleKey(e) {
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}
+}
+function sendQuick(t) {
+  document.getElementById("input").value = t;
+  sendMessage();
+}
+
+function addMessage(role, content, agent) {
+  const msgs = document.getElementById("messages");
+  const w = msgs.querySelector(".welcome");
+  if(w) w.remove();
+  const div = document.createElement("div");
+  div.className = "message " + role;
+  const av = document.createElement("div");
+  av.className = "avatar";
+  av.textContent = role==="user"?"U":"B";
+  const inner = document.createElement("div");
+  const bub = document.createElement("div");
+  bub.className = "bubble";
+  bub.textContent = content;
+  inner.appendChild(bub);
+  if(agent){
+    const badge = document.createElement("div");
+    badge.className = "agent-badge";
+    badge.textContent = agent + " agent";
+    inner.appendChild(badge);
+  }
+  div.appendChild(av);
+  div.appendChild(inner);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  const msgs = document.getElementById("messages");
+  const div = document.createElement("div");
+  div.className = "message bot typing";
+  div.id = "typing";
+  div.innerHTML = '<div class="avatar">B</div><div class="bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if(t) t.remove();
+}
+
+function seatBadgeClass(type) {
+  if(!type) return "badge-seater";
+  const t = type.toLowerCase();
+  if(t.includes("ac") && t.includes("sleeper")) return "badge-ac-sleeper";
+  if(t.includes("sleeper")) return "badge-sleeper";
+  if(t.includes("ac")) return "badge-ac-seater";
+  return "badge-seater";
+}
+
+function calcDuration(dep, arr) {
+  try {
+    const [dh,dm] = dep.split(":").map(Number);
+    let [ah,am] = arr.split(":").map(Number);
+    if(ah < dh) ah += 24;
+    const mins = (ah*60+am)-(dh*60+dm);
+    const h = Math.floor(mins/60), m = mins%60;
+    return h+"h"+(m>0?" "+m+"m":"");
+  } catch{return "";}
+}
+
+function renderBusCards(results) {
+  const msgs = document.getElementById("messages");
+  const w = msgs.querySelector(".welcome");
+  if(w) w.remove();
+
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.style.maxWidth = "95%";
+  div.style.width = "95%";
+  const av = document.createElement("div");
+  av.className = "avatar";
+  av.textContent = "B";
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
+
+  const caption = document.createElement("div");
+  caption.style.cssText = "font-size:13px;color:#6b7280;margin-bottom:8px;padding-left:2px";
+  caption.textContent = results.length + " bus" + (results.length!==1?"es":"") + " found";
+  inner.appendChild(caption);
+
+  const cardsWrap = document.createElement("div");
+  cardsWrap.className = "bus-results";
+
+  results.forEach(r => {
+    const card = document.createElement("div");
+    card.className = "bus-card";
+    const lowSeats = r.available <= 5;
+    const dur = calcDuration(r.departure, r.arrival);
+    card.innerHTML =
+      '<div class="bus-card-top">'+
+        '<div><div class="bus-card-name">'+r.operator+'</div>'+
+        '<div class="bus-card-days">'+r.days+'</div></div>'+
+        '<span class="seat-badge '+seatBadgeClass(r.seat_type)+'">'+r.seat_type+'</span>'+
+      '</div>'+
+      '<div class="bus-route-row">'+
+        '<span class="route-time">'+r.departure+'</span>'+
+        '<span class="route-arrow">→</span>'+
+        (dur?'<span class="route-duration">'+dur+'</span><span class="route-arrow">→</span>':'')+
+        '<span class="route-time">'+r.arrival+'</span>'+
+      '</div>'+
+      '<div class="bus-card-footer">'+
+        '<div>'+
+          '<div class="bus-price">Rs '+parseInt(r.price).toLocaleString()+'</div>'+
+          '<div class="bus-seats-left'+(lowSeats?' seats-low':'')+'">'+
+            (lowSeats?'Only ':'') + r.available + ' seats left'+
+          '</div>'+
+        '</div>'+
+        '<button class="btn-select">Select seat</button>'+
+      '</div>';
+
+    card.querySelector(".btn-select").onclick = () => {
+      bookingState.scheduleId = r.schedule_id;
+      bookingState.busName    = r.operator + " " + r.seat_type;
+      bookingState.dep        = r.departure;
+      bookingState.arr        = r.arrival;
+      bookingState.price      = r.price;
+      bookingState.seatNum    = null;
+      loadSeatMap(r.schedule_id, "lower");
+    };
+    cardsWrap.appendChild(card);
+  });
+
+  const badge = document.createElement("div");
+  badge.className = "agent-badge";
+  badge.textContent = "search agent";
+
+  inner.appendChild(cardsWrap);
+  inner.appendChild(badge);
+  div.appendChild(av);
+  div.appendChild(inner);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function loadSeatMap(scheduleId, deck) {
+  bookingState.deck = deck;
+  const msgs = document.getElementById("messages");
+
+  const existing = document.getElementById("seat-map-msg");
+  if(existing) existing.remove();
+
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.id = "seat-map-msg";
+  div.style.maxWidth = "95%";
+  div.style.width = "95%";
+
+  const av = document.createElement("div");
+  av.className = "avatar";
+  av.textContent = "B";
+
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
+  inner.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:8px 0">Loading seat map...</div>';
+
+  div.appendChild(av);
+  div.appendChild(inner);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch(API+"/tools/seat_map", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({schedule_id: scheduleId, deck: deck})
+    });
+    const data = await res.json();
+    bookingState.hasUpper = data.has_upper;
+    inner.innerHTML = "";
+    inner.appendChild(buildSeatMapEl(data));
+  } catch(e) {
+    inner.innerHTML = '<div style="font-size:13px;color:#e84640;padding:8px 0">Could not load seat map. Please try again.</div>';
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function buildSeatMapEl(data) {
+  const wrap = document.createElement("div");
+  wrap.className = "seat-map-wrap";
+
+  const header = document.createElement("div");
+  header.className = "seat-map-header";
+  header.innerHTML = '<div class="seat-map-title">'+bookingState.busName+' &nbsp;·&nbsp; '+data.origin+' → '+data.destination+'</div>';
+
+  if(data.has_upper) {
+    const toggle = document.createElement("div");
+    toggle.className = "deck-toggle";
+    ["lower","upper"].forEach(d => {
+      const btn = document.createElement("button");
+      btn.className = "deck-btn" + (d===bookingState.deck?" active":"");
+      btn.textContent = d.charAt(0).toUpperCase()+d.slice(1);
+      btn.onclick = () => loadSeatMap(bookingState.scheduleId, d);
+      toggle.appendChild(btn);
+    });
+    header.appendChild(toggle);
+  }
+  wrap.appendChild(header);
+
+  const body = document.createElement("div");
+  body.className = "bus-body";
+
+  const driverRow = document.createElement("div");
+  driverRow.className = "driver-row";
+  driverRow.innerHTML = '<span>&#128652; Driver</span><span>Front of bus →</span>';
+  body.appendChild(driverRow);
+
+  const layout = document.createElement("div");
+  layout.className = "seat-layout";
+
+  const seats = data.seats;
+  const seatsPerRow = 4;
+  const totalRows = Math.ceil(seats.length / seatsPerRow);
+  let selectedEl = null;
+
+  for(let row=0; row<totalRows; row++) {
+    const rowEl = document.createElement("div");
+    rowEl.className = "seat-row";
+
+    const rl = document.createElement("div");
+    rl.className = "row-label";
+    rl.textContent = row+1;
+    rowEl.appendChild(rl);
+
+    const leftPair = document.createElement("div");
+    leftPair.className = "seat-pair";
+
+    const rightPair = document.createElement("div");
+    rightPair.className = "seat-pair";
+
+    for(let col=0; col<seatsPerRow; col++) {
+      const idx = row*seatsPerRow + col;
+      if(idx >= seats.length) break;
+      const s = seats[idx];
+
+      const el = document.createElement("div");
+      el.className = "seat";
+      if(s.is_window) el.classList.add("win-seat");
+
+      if(s.status==="booked") {
+        el.classList.add(s.gender==="F"?"bk-f":"bk-m");
+        el.innerHTML = '<div class="s-num">'+s.seat_number+'</div><div class="s-tag">'+(s.gender||"")+'</div>';
+      } else {
+        el.classList.add("avail");
+        el.innerHTML = '<div class="s-num">'+s.seat_number+'</div><div class="s-tag">'+(s.is_window?"win":"")+'</div>';
+        el.onclick = () => {
+          if(selectedEl) {
+            selectedEl.classList.remove("sel");
+            selectedEl.classList.add("avail");
+            const prev = selectedEl.querySelector(".s-tag");
+            if(prev) prev.textContent = selectedEl.classList.contains("win-seat")?"win":"";
+          }
+          el.classList.remove("avail");
+          el.classList.add("sel");
+          const tag = el.querySelector(".s-tag");
+          if(tag) tag.textContent = "✓";
+          selectedEl = el;
+          bookingState.seatNum = s.seat_number;
+          const info = document.getElementById("seat-sel-info");
+          if(info) {
+            info.innerHTML = 'Seat <span>'+s.seat_number+'</span>'+(s.is_window?' · <span>Window</span>':'');
+          }
+          const procBtn = document.getElementById("proceed-btn");
+          if(procBtn) procBtn.classList.add("on");
+        };
+      }
+
+      if(col < 2) leftPair.appendChild(el);
+      else rightPair.appendChild(el);
+    }
+
+    rowEl.appendChild(leftPair);
+    const aisle = document.createElement("div");
+    aisle.className = "aisle-gap";
+    rowEl.appendChild(aisle);
+    rowEl.appendChild(rightPair);
+    layout.appendChild(rowEl);
+  }
+
+  body.appendChild(layout);
+  wrap.appendChild(body);
+
+  const legend = document.createElement("div");
+  legend.className = "seat-legend";
+  legend.innerHTML =
+    '<div class="leg-item"><div class="leg-swatch lw"></div>Window</div>'+
+    '<div class="leg-item"><div class="leg-swatch"></div>Available</div>'+
+    '<div class="leg-item"><div class="leg-swatch lf"></div>Booked (F)</div>'+
+    '<div class="leg-item"><div class="leg-swatch lm"></div>Booked (M)</div>'+
+    '<div class="leg-item"><div class="leg-swatch ls"></div>Your pick</div>';
+  wrap.appendChild(legend);
+
+  const footer = document.createElement("div");
+  footer.className = "seat-map-footer";
+  footer.innerHTML =
+    '<div class="selected-info" id="seat-sel-info">Tap a seat to select</div>'+
+    '<button class="btn-proceed" id="proceed-btn" onclick="showConfirm()">Proceed →</button>';
+  wrap.appendChild(footer);
+
+  return wrap;
+}
+
+function showConfirm() {
+  if(!bookingState.seatNum) return;
+  const msgs = document.getElementById("messages");
+
+  const existing = document.getElementById("confirm-msg");
+  if(existing) existing.remove();
+
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.id = "confirm-msg";
+  div.style.maxWidth = "95%";
+  div.style.width = "95%";
+
+  const av = document.createElement("div");
+  av.className = "avatar";
+  av.textContent = "B";
+
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
+
+  const card = document.createElement("div");
+  card.className = "confirm-card";
+  card.innerHTML =
+    '<div class="confirm-title">Confirm your booking</div>'+
+    '<div class="confirm-row"><span class="c-label">Bus</span><span class="c-val">'+bookingState.busName+'</span></div>'+
+    '<div class="confirm-row"><span class="c-label">Departure</span><span class="c-val">'+bookingState.dep+' → '+bookingState.arr+'</span></div>'+
+    '<div class="confirm-row"><span class="c-label">Seat</span><span class="c-val">'+bookingState.seatNum+' ('+bookingState.deck+' deck)</span></div>'+
+    '<div class="confirm-row"><span class="c-label">Passenger</span><span class="c-val">Guest User</span></div>'+
+    '<div style="font-size:12px;color:#6b7280;margin:10px 0 4px">Passenger gender</div>'+
+    '<div class="gender-row">'+
+      '<button class="gender-btn active" id="gender-m" onclick="setGender(\'M\')">Male</button>'+
+      '<button class="gender-btn" id="gender-f" onclick="setGender(\'F\')">Female</button>'+
+    '</div>'+
+    '<div class="confirm-total"><span>Total</span><span>Rs '+parseInt(bookingState.price).toLocaleString()+'</span></div>'+
+    '<button class="btn-confirm-booking" onclick="confirmBooking()">Confirm &amp; Book</button>'+
+    '<button class="btn-back" onclick="this.closest(\'.message\').remove()">Back</button>';
+
+  inner.appendChild(card);
+  div.appendChild(av);
+  div.appendChild(inner);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function setGender(g) {
+  bookingState.gender = g;
+  document.getElementById("gender-m").className = "gender-btn"+(g==="M"?" active":"");
+  document.getElementById("gender-f").className = "gender-btn"+(g==="F"?" active":"");
+}
+
+async function confirmBooking() {
+  const msgs = document.getElementById("messages");
+  const confirmMsg = document.getElementById("confirm-msg");
+
+  try {
+    const res = await fetch(API+"/tools/book_ticket_ui", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        schedule_id: bookingState.scheduleId,
+        user_name:   "Guest User",
+        user_email:  "guest@example.com",
+        gender:      bookingState.gender,
+        seat_number: bookingState.seatNum,
+        seats:       1
+      })
+    });
+    const data = await res.json();
+
+    if(confirmMsg) confirmMsg.remove();
+
+    if(data.success) {
+      renderTicket(data);
+    } else {
+      addMessage("bot", "Booking failed: "+(data.detail||"Please try again."), "booking");
+    }
+  } catch(e) {
+    addMessage("bot", "Could not complete booking. Please try again.", "error");
+  }
+}
+
+function renderTicket(data) {
+  const msgs = document.getElementById("messages");
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.style.maxWidth = "95%";
+  div.style.width = "95%";
+
+  const av = document.createElement("div");
+  av.className = "avatar";
+  av.textContent = "B";
+
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
+
+  const ticket = document.createElement("div");
+  ticket.className = "ticket-wrap";
+  ticket.innerHTML =
+    '<div class="ticket-head">'+
+      '<div class="ticket-head-left">'+
+        '<h3>Booking confirmed!</h3>'+
+        '<p>Your seat is reserved</p>'+
+      '</div>'+
+      '<div class="ticket-head-right">'+
+        '<div class="ticket-head-right"><div class="bk-label">BOOKING ID</div><div class="bk-id">'+data.booking_id+'</div></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="ticket-route">'+
+      '<div class="ticket-city"><div class="tname">'+bookingState.dep+'</div><div class="ttime">Departure</div></div>'+
+      '<div class="ticket-dash"></div>'+
+      '<div class="ticket-city"><div class="tname">'+bookingState.arr+'</div><div class="ttime">Arrival</div></div>'+
+    '</div>'+
+    '<div class="ticket-details">'+
+      '<div class="t-detail"><div class="t-label">Operator</div><div class="t-val">'+bookingState.busName.split(' ')[0]+'</div></div>'+
+      '<div class="t-detail"><div class="t-label">Seat type</div><div class="t-val">'+data.seat_type+'</div></div>'+
+      '<div class="t-detail"><div class="t-label">Seat no.</div><div class="t-val">'+(data.seat_number||"-")+'</div></div>'+
+      '<div class="t-detail"><div class="t-label">Amount paid</div><div class="t-val">Rs '+parseInt(data.total_price).toLocaleString()+'</div></div>'+
+    '</div>'+
+    '<div class="ticket-foot">'+
+      '<div class="ticket-note">Show this at boarding</div>'+
+      '<button class="btn-pdf" onclick="downloadTicket(\''+data.booking_id+'\')">&#10515; Download PDF</button>'+
+    '</div>';
+
+  const badge = document.createElement("div");
+  badge.className = "agent-badge";
+  badge.textContent = "booking agent";
+
+  inner.appendChild(ticket);
+  inner.appendChild(badge);
+  div.appendChild(av);
+  div.appendChild(inner);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  renderChips("support");
+}
+
+function downloadTicket(bookingId) {
+  alert("PDF download: booking "+bookingId+"\n\nIn production this calls /booking/"+bookingId+"/pdf which generates a PDF using ReportLab and returns it as a file download.");
+}
+
+async function sendMessage() {
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+  if(!text||isTyping) return;
+
+  isTyping = true;
+  document.getElementById("send").disabled = true;
+  input.value = "";
+  input.style.height = "auto";
+  document.getElementById("chips").innerHTML = "";
+
+  addMessage("user", text);
+  addTyping();
+
+  try {
+    const res = await fetch(API+"/chat/stream", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({message:text, session_id:SESSION_ID, user_id:"default_user"})
+    });
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let botMsg = null;
+    let fullText = "";
+    let agentName = "";
+    let searchResults = [];
+
+    while(true) {
+      const {done, value} = await reader.read();
+      if(done) break;
+      const lines = dec.decode(value).split("\n");
+      for(const line of lines) {
+        if(!line.startsWith("data: ")) continue;
+        try {
+          const d = JSON.parse(line.slice(6));
+          if(d.type==="token") {
+            removeTyping();
+            if(!botMsg) botMsg = addMessage("bot","","");
+            fullText += d.content;
+            botMsg.querySelector(".bubble").textContent = fullText;
+            document.getElementById("messages").scrollTop = 999999;
+          } else if(d.type==="done") {
+            agentName = d.agent||"";
+            searchResults = d.search_results||[];
+            if(botMsg) {
+              let badge = botMsg.querySelector(".agent-badge");
+              if(!badge){
+                badge = document.createElement("div");
+                badge.className = "agent-badge";
+                botMsg.querySelector("div:last-child").appendChild(badge);
+              }
+              badge.textContent = agentName+" agent";
+            }
+            if(searchResults.length > 0) {
+              if(botMsg) botMsg.remove();
+              renderBusCards(searchResults);
+            }
+            const ctx = detectChipContext(fullText, agentName);
+            if(ctx) renderChips(ctx);
+          } else if(d.type==="error") {
+            removeTyping();
+            addMessage("bot","Something went wrong. Please try again.","error");
+          }
+        } catch(e){}
+      }
+    }
+  } catch(err) {
+    removeTyping();
+    addMessage("bot","Could not connect to the server. Is it running?","error");
+  }
+
+  isTyping = false;
+  document.getElementById("send").disabled = false;
+  input.focus();
+}
+
+renderChips("welcome");
+</script>
+</body>
+</html>

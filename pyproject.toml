@@ -1,0 +1,23 @@
+[project]
+name = "bus-booking-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "datasets>=4.8.5",
+    "faker>=40.15.0",
+    "fastapi>=0.136.1",
+    "grandalf>=0.8",
+    "httpx>=0.28.1",
+    "langchain-groq>=1.1.2",
+    "langchain-ollama>=1.1.0",
+    "langgraph>=1.1.10",
+    "numpy>=2.4.4",
+    "ollama>=0.6.2",
+    "python-dotenv>=1.2.2",
+    "qdrant-client>=1.17.1",
+    "ragas==0.2.15",
+    "rank-bm25>=0.2.2",
+    "uvicorn>=0.46.0",
+]

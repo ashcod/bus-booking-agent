@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Environment — never commit secrets
+.env
+
+# Data — DB and memory files (too large, user-specific)
+data/db/
+data/raw/
+
+# Test files
+test_*.py
+write_ui.py
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LangSmith local cache
+.langsmith/

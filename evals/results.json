@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-05-08T18:21:04.638793",
+  "aggregate": {
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.755,
+    "context_recall": 1.0,
+    "overall": 0.918
+  },
+  "per_question": [
+    {
+      "question": "Are there AC buses from Hyderabad to Bangalore?",
+      "answer": "The context does not mention Hyderabad or Bangalore. It only provides information about two MSRTC bus options with their fares, departure and arrival times, and available seats.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.72,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is the cheapest bus from Hyderabad to Bangalore?",
+      "answer": "The cheapest bus is the MSRTC Seater, priced at Rs 456.0.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.854,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Are there evening buses from Hyderabad to Bangalore?",
+      "answer": "There is a bus departing at 18:30.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.755,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What buses run from Bangalore to Kochi?",
+      "answer": "KSRTC Sleeper buses. There are two options: \n1. Departing at 13:30, arriving at 19:59\n2. Departing at 16:00, arriving at 22:29",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.698,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is the price of an AC Sleeper from Hyderabad to Bangalore?",
+      "answer": "The price is Rs 1140.0.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.75,
+      "context_recall": 1.0
+    }
+  ]
+}
