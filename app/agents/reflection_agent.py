@@ -1,7 +1,5 @@
 # app/agents/reflection_agent.py
 # Purpose: agent reviews its own answer before sending to user
-#
-# Interview point: this is the self-improvement loop.
 # Before the search agent's response reaches the user, a reflection
 # node scores it on three criteria:
 # 1. Accuracy — does it use real data from search results?
