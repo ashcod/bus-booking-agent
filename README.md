@@ -10,6 +10,22 @@ A production-grade multi-agent AI system that adds a conversational booking inte
 
 ---
 
+## Screenshots
+
+### Home screen
+![Home Screen](screenshots/UI_Screenshots_Home.png)
+
+### Bus search results
+![Bus Search Results](screenshots/UI_Screenshots_1.png)
+
+### Seat map selection
+![Seat Map](screenshots/UI_Screenshots_2.png)
+
+### Booking confirmation
+![Booking Confirmation](screenshots/UI_Screenshots_3.png)
+
+---
+
 ## Architecture
 
 ```
