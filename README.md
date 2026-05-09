@@ -163,12 +163,6 @@ uv run python evals/rag_eval.py
 
 ---
 
-## Documentation
-
-Full production documentation (architecture, design decisions, tradeoffs, scalability, cost analysis, test cases, interview prep) available in `BusBot_Production_Documentation.docx`.
-
----
-
 ## Author
 
 SAI ASHISH ADHIBATLA — AI Engineer  
