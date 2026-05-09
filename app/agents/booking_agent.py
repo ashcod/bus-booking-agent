@@ -6,6 +6,7 @@ from datetime import datetime
 from langchain_core.messages import AIMessage
 from app.agents.state import BookingState
 from app.memory.user_memory import record_booking
+from app.tools.mcp_client import call_tool
 
 DB_PATH = "data/db/bus_booking.db"
 
@@ -49,9 +50,12 @@ def book_ticket(schedule_id: str, user_name: str, user_email: str,
     booked_at = datetime.now().isoformat()
 
     conn.execute(
-        "INSERT INTO bookings VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (booking_id, schedule_id, user_name, user_email,
-         seats, total_price, booked_at, "confirmed")
+        "INSERT INTO bookings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (booking_id, params.schedule_id, params.user_name,
+         params.user_email, params.gender, params.seats,
+         total_price, datetime.now().isoformat(),
+         None,   # travel_date — set by UI via tool_server
+         "confirmed")
     )
     conn.commit()
     conn.close()
@@ -69,12 +73,14 @@ def book_ticket(schedule_id: str, user_name: str, user_email: str,
     }
 
 
+from app.tools.mcp_client import call_tool
+
 def booking_agent_node(state: BookingState) -> dict:
     last_message = state["messages"][-1].content
     schedule_id = state.get("selected_schedule_id")
 
-    # try to find schedule ID mentioned in the message (format: SC00000)
     if not schedule_id:
+        import re
         match = re.search(r'SC\d{5}', last_message.upper())
         if match:
             schedule_id = match.group()
@@ -84,48 +90,50 @@ def booking_agent_node(state: BookingState) -> dict:
             "responding_agent": "booking",
             "messages": [AIMessage(content=(
                 "Which bus would you like to book? "
-                "Please mention the schedule ID — for example: 'book SC00000'. "
-                "You can find the schedule ID in the search results."
+                "Please mention the schedule ID — for example: 'book SC00000'."
             ))]
         }
 
-    confirmation = book_ticket(
-        schedule_id=schedule_id,
-        user_name="Guest User",
-        user_email="guest@example.com",
-        seats=1
-    )
+    # call MCP tool server for booking
+    from datetime import date
+    result = call_tool("book_ticket", {
+        "schedule_id": schedule_id,
+        "user_name":   "Guest User",
+        "user_email":  "guest@example.com",
+        "gender":      "M",
+        "seats":       1,
+        "travel_date": date.today().isoformat()
+    })
 
-    if not confirmation["success"]:
+    if "error" in result:
         return {
             "responding_agent": "booking",
             "messages": [AIMessage(content=(
-                f"Sorry, booking failed: {confirmation['error']}. "
-                f"Please search again for available options."
+                f"Booking failed: {result.get('detail', result.get('error', 'Please try again.'))}. "
             ))]
         }
 
-    # record booking in long-term memory
+    from app.memory.user_memory import record_booking
     record_booking(
         user_id="default_user",
-        booking_id=confirmation["booking_id"],
-        seat_type=confirmation["seat_type"]
+        booking_id=result["booking_id"],
+        seat_type=result["seat_type"]
     )
 
     response = (
         f"Booking confirmed!\n\n"
-        f"  Booking ID:  {confirmation['booking_id']}\n"
-        f"  Schedule:    {confirmation['schedule_id']}\n"
-        f"  Seat type:   {confirmation['seat_type']}\n"
-        f"  Departure:   {confirmation['departure']}\n"
-        f"  Arrival:     {confirmation['arrival']}\n"
-        f"  Seats:       {confirmation['seats_booked']}\n"
-        f"  Total price: Rs {confirmation['total_price']}\n\n"
-        f"Please save your Booking ID: {confirmation['booking_id']}"
+        f"  Booking ID:  {result['booking_id']}\n"
+        f"  Schedule:    {schedule_id}\n"
+        f"  Seat type:   {result['seat_type']}\n"
+        f"  Departure:   {result['departure']}\n"
+        f"  Arrival:     {result['arrival']}\n"
+        f"  Seats:       {result['seats_booked']}\n"
+        f"  Total price: Rs {result['total_price']}\n\n"
+        f"Please save your Booking ID: {result['booking_id']}"
     )
 
     return {
-        "booking_confirmation": confirmation,
+        "booking_confirmation": result,
         "selected_schedule_id": schedule_id,
         "responding_agent":     "booking",
         "messages":             [AIMessage(content=response)]

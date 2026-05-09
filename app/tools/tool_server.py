@@ -165,6 +165,7 @@ class BookTicketInput(BaseModel):
     gender:      str = "M"
     seat_number: int = None
     seats:       int = 1
+    travel_date: str = None   # add this — format YYYY-MM-DD
 
 
 @app.post("/tools/book_ticket")
@@ -191,6 +192,7 @@ def book_ticket(params: BookTicketInput):
         )
 
     # book specific seat if provided
+    # check seat_inventory status before booking
     if params.seat_number:
         seat_row = conn.execute(
             """SELECT status FROM seat_inventory
@@ -204,7 +206,10 @@ def book_ticket(params: BookTicketInput):
 
         if seat_row[0] == "booked":
             conn.close()
-            raise HTTPException(status_code=400, detail="Seat already booked")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seat {params.seat_number} is already booked. Please select another seat."
+            )
 
         conn.execute(
             """UPDATE seat_inventory
@@ -224,10 +229,14 @@ def book_ticket(params: BookTicketInput):
     total_price = round(price * params.seats, 2)
 
     conn.execute(
-        "INSERT INTO bookings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        """INSERT INTO bookings 
+           (booking_id, schedule_id, user_name, user_email, gender,
+            seats_booked, total_price, booked_at, travel_date, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (booking_id, params.schedule_id, params.user_name,
          params.user_email, params.gender, params.seats,
-         total_price, datetime.now().isoformat(), "confirmed")
+         total_price, datetime.now().isoformat(),
+         params.travel_date, "confirmed")
     )
     conn.commit()
     conn.close()

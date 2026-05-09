@@ -597,17 +597,23 @@ async function confirmBooking() {
   const msgs = document.getElementById("messages");
   const confirmMsg = document.getElementById("confirm-msg");
 
+  // use today as travel date for now
+  // in production this comes from a date picker
+  const today = new Date();
+  const travelDate = today.toISOString().split('T')[0];
+
   try {
-    const res = await fetch(API+"/tools/book_ticket_ui", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
+    const res = await fetch(API + "/tools/book_ticket_ui", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         schedule_id: bookingState.scheduleId,
         user_name:   "Guest User",
         user_email:  "guest@example.com",
         gender:      bookingState.gender,
         seat_number: bookingState.seatNum,
-        seats:       1
+        seats:       1,
+        travel_date: travelDate    // add this
       })
     });
     const data = await res.json();

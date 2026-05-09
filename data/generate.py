@@ -140,6 +140,20 @@ def create_tables(conn: sqlite3.Connection):
             gender      TEXT,
             FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id)
         );
+                       
+        CREATE TABLE IF NOT EXISTS bookings (
+            booking_id   TEXT PRIMARY KEY,
+            schedule_id  TEXT NOT NULL,
+            user_name    TEXT NOT NULL,
+            user_email   TEXT NOT NULL,
+            gender       TEXT NOT NULL DEFAULT 'M',
+            seats_booked INTEGER NOT NULL,
+            total_price  REAL NOT NULL,
+            booked_at    TEXT NOT NULL,
+            travel_date  TEXT,
+            status       TEXT DEFAULT 'confirmed',
+            FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id)
+        );
         
     """)
     conn.commit()

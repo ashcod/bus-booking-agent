@@ -73,7 +73,7 @@ AMBIGUOUS_THRESHOLD  = 0.65
 # ── Embedding helpers ─────────────────────────────────────────────────────────
 
 def _embed(text: str) -> np.ndarray:
-    response = _ollama.embeddings(model="nomic-embed-text", prompt=text)
+    response = _ollama.embeddings(model="nomic-embed-text", prompt=text.lower())
     return np.array(response["embedding"])
 
 
@@ -109,7 +109,6 @@ except Exception as e:
 # ── Guardrail function ────────────────────────────────────────────────────────
 
 def _llm_guardrail_check(message: str) -> tuple[bool, str]:
-    """LLM judge for ambiguous cases only."""
     try:
         response = llm.invoke([
             SystemMessage(content=GUARDRAIL_PROMPT),
@@ -124,28 +123,6 @@ def _llm_guardrail_check(message: str) -> tuple[bool, str]:
 
 
 def check_guardrails(message: str) -> tuple[bool, str]:
-    """
-    Three-layer domain-aware guardrail.
-
-    Layer 1 — Injection detection:
-      Cosine similarity against known injection examples.
-      Above threshold → block immediately, no LLM call.
-
-    Layer 2 — Domain confidence:
-      Compare against in-domain and out-of-domain examples.
-      Clearly in-domain → allow.
-      Clearly out-of-domain → friendly redirect.
-      Ambiguous → LLM judge.
-
-    Layer 3 — LLM judge (ambiguous only):
-      Expensive but accurate. Called rarely.
-      Fail-open on error — better to serve than crash.
-
-    Interview point: this is out-of-distribution detection.
-    You don't enumerate every attack — you define your domain boundary.
-    Anything outside that boundary gets redirected.
-    Only the ambiguous middle calls the LLM.
-    """
     message_lower = message.lower().strip()
 
     # instant pass for known short clarification responses
@@ -157,9 +134,8 @@ def check_guardrails(message: str) -> tuple[bool, str]:
            for s in instant_safe):
         return True, "ok"
 
-    # embed the message
     try:
-        msg_emb = _embed(message_lower)
+        msg_emb = _embed(message)
     except Exception as e:
         print(f"[Guardrail] Embedding error: {e} — failing open")
         return True, "ok"
@@ -172,30 +148,24 @@ def check_guardrails(message: str) -> tuple[bool, str]:
           f"in_domain={in_domain_score:.3f} "
           f"out_domain={out_domain_score:.3f}")
 
-    # layer 1 — clear injection attack
     if injection_score > INJECTION_THRESHOLD:
         print(f"[Guardrail] BLOCKED — injection {injection_score:.3f}")
         return False, "prompt_injection"
 
-    # ambiguous injection — LLM judge
     if injection_score > AMBIGUOUS_THRESHOLD:
         print(f"[Guardrail] Ambiguous injection — LLM judge")
         return _llm_guardrail_check(message)
 
-    # layer 2 — clearly in-domain
     if in_domain_score > DOMAIN_THRESHOLD and in_domain_score > out_domain_score:
         return True, "ok"
 
-    # clearly out-of-domain
     if out_domain_score > DOMAIN_THRESHOLD and out_domain_score > in_domain_score:
         print(f"[Guardrail] Out-of-domain {out_domain_score:.3f} — redirecting")
         return False, "off_topic"
 
-    # short messages — lean toward allowing
     if len(message_lower) < 30:
         return True, "ok"
 
-    # longer ambiguous — LLM judge
     return _llm_guardrail_check(message)
 
 
@@ -207,7 +177,6 @@ Classify the user's message into exactly one intent.
 Intents:
 - search: user wants to find buses, check availability, compare options
 - refine: user wants to filter or modify existing search results
-  (cheaper, AC only, sleeper only, morning only, show all, different time)
 - book: user wants to confirm and purchase a ticket
 - cancel: user wants to cancel an existing booking
 - support: user has a complaint, refund query, or general question
@@ -218,13 +187,10 @@ Reply with ONLY the intent word. Nothing else.
 Examples:
 "Are there any AC buses from Hyderabad to Bangalore?" -> search
 "Show me cheaper options" -> refine
-"Show only AC buses" -> refine
-"Night buses only" -> refine
-"show all" -> refine
-"evening please" -> refine
 "Book me the 18:30 MSRTC sleeper" -> book
 "Cancel my booking SC00123" -> cancel
 "What is your refund policy?" -> support
+"I want to cancel my booking" -> support
 "yes from Hyderabad" -> search
 "Hello" -> unclear"""
 
@@ -232,11 +198,6 @@ Examples:
 # ── Conversation helpers ──────────────────────────────────────────────────────
 
 def build_conversation_summary(messages: list) -> str:
-    """
-    Compact summary of prior conversation for context injection.
-    Interview point: conversation compression keeps token costs low.
-    We summarise rather than pass the full history every time.
-    """
     summary_lines = []
     for msg in messages[:-1]:
         if isinstance(msg, HumanMessage):
@@ -247,11 +208,6 @@ def build_conversation_summary(messages: list) -> str:
 
 
 def extract_params(user_message: str, conversation_context: str, llm) -> dict:
-    """
-    Extract structured travel params from natural language + context.
-    Interview point: context-aware extraction handles short replies
-    like 'yes' or 'evening' that are meaningless without history.
-    """
     prompt = f"""Extract travel parameters from the conversation below.
 Return ONLY a valid Python dict. No explanation, no markdown, no backticks.
 Keys: origin, destination, seat_type, max_price, departure_date, time_of_day
@@ -311,21 +267,23 @@ Dict:"""
 
 # ── Orchestrator node ─────────────────────────────────────────────────────────
 
+# support triggers — checked before clarification pass-through
+SUPPORT_TRIGGERS = [
+    "i want to cancel", "cancel my booking", "cancel booking",
+    "want to cancel", "need to cancel", "i need to cancel",
+    "refund", "cancellation", "lost my ticket", "complaint",
+    "what is your refund", "refund policy",
+    "i would like to cancel", "please cancel",
+    "how do i cancel", "cancel ticket",
+]
+
+
 def orchestrator_node(state: BookingState) -> dict:
-    """
-    Entry point for every user message.
-
-    Responsibilities:
-    1. Guardrail — block injection and out-of-domain requests
-    2. Clarification pass-through — don't re-classify mid-conversation
-    3. Intent classification + param extraction for new requests
-
-    Interview point: the orchestrator is a pure function — same input
-    always produces same output. State persistence is handled by the
-    LangGraph checkpointer, not by the function itself.
-    """
     messages = state["messages"]
     last_message = messages[-1].content
+    last_lower = last_message.lower()
+
+    print(f"[Orchestrator] Message: '{last_message[:60]}'")
 
     # ── 1. guardrail ──────────────────────────────────────────────
     is_safe, reason = check_guardrails(last_message)
@@ -346,13 +304,22 @@ def orchestrator_node(state: BookingState) -> dict:
             )
         return {
             "intent":           "blocked",
+            "search_results":   [],
             "responding_agent": "guardrail",
             "messages":         [AIMessage(content=reply)]
         }
 
-    # ── 2. clarification pass-through ────────────────────────────
-    # if we're mid-clarification, skip re-classification
-    # just update params and stay in search flow
+    # ── 2. support fast-path ──────────────────────────────────────
+    # must be BEFORE clarification check
+    # cancellation and refund queries should never hit search
+    if any(trigger in last_lower for trigger in SUPPORT_TRIGGERS):
+        print(f"[Orchestrator] Support fast-path triggered")
+        return {
+            "intent":         "support",
+            "search_results": [],   # clear stale search results
+        }
+
+    # ── 3. clarification pass-through ────────────────────────────
     clarification_triggers = [
         "show all", "morning", "afternoon", "evening", "night",
         "yes", "no,", "yes,", "no from", "yes from",
@@ -360,14 +327,12 @@ def orchestrator_node(state: BookingState) -> dict:
     ]
     is_clarification_response = (
         state.get("clarification_needed", False) or
-        any(last_message.lower().startswith(t)
-            for t in clarification_triggers)
+        any(last_lower.startswith(t) for t in clarification_triggers)
     )
 
     if is_clarification_response:
         conversation_context = build_conversation_summary(messages)
         params = extract_params(last_message, conversation_context, llm)
-
         final_params = {
             "origin":         params["origin"]         or state.get("origin"),
             "destination":    params["destination"]    or state.get("destination"),
@@ -376,7 +341,6 @@ def orchestrator_node(state: BookingState) -> dict:
             "time_of_day":    params["time_of_day"]    or state.get("time_of_day"),
             "departure_date": params["departure_date"] or state.get("departure_date"),
         }
-
         print(f"[Orchestrator] Clarification pass-through | Params: {final_params}")
         return {
             "intent":               "search",
@@ -384,7 +348,7 @@ def orchestrator_node(state: BookingState) -> dict:
             **final_params
         }
 
-    # ── 3. fresh intent classification ───────────────────────────
+    # ── 4. fresh intent classification ───────────────────────────
     conversation_context = build_conversation_summary(messages)
 
     intent_response = llm.invoke([
@@ -401,7 +365,6 @@ def orchestrator_node(state: BookingState) -> dict:
         intent = "unclear"
 
     params = extract_params(last_message, conversation_context, llm)
-
     final_params = {
         "origin":         params["origin"]         or state.get("origin"),
         "destination":    params["destination"]    or state.get("destination"),
@@ -410,6 +373,10 @@ def orchestrator_node(state: BookingState) -> dict:
         "time_of_day":    params["time_of_day"]    or state.get("time_of_day"),
         "departure_date": params["departure_date"] or state.get("departure_date"),
     }
+
+    # clear search results for non-search intents
+    if intent not in ("search", "refine"):
+        final_params["search_results"] = []
 
     print(f"[Orchestrator] Intent: {intent} | Params: {final_params}")
     return {"intent": intent, **final_params}
