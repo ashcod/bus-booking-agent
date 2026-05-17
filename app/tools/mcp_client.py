@@ -5,7 +5,7 @@
 # Swap the URL and all agents automatically use a different tool server.
 
 import httpx
-from app.config import TOOL_SERVER_URL
+from app.core.config import TOOL_SERVER_URL
 
 
 def call_tool(tool_name: str, params: dict) -> dict:

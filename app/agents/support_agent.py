@@ -2,7 +2,7 @@
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.agents.state import BookingState
-from app.config import LLM_MODEL, GROQ_API_KEY
+from app.core.config import LLM_MODEL, GROQ_API_KEY
 import sqlite3
 import re
 from datetime import datetime, timedelta

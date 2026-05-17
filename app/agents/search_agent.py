@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 from app.agents.state import BookingState
 from app.rag.retriever import retrieve
-from app.config import LLM_MODEL, GROQ_API_KEY
+from app.core.config import LLM_MODEL, GROQ_API_KEY
 from app.memory.user_memory import record_search, get_memory_context
 
 llm = ChatGroq(model=LLM_MODEL, api_key=GROQ_API_KEY, temperature=0)

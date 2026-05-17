@@ -16,7 +16,7 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
 from rank_bm25 import BM25Okapi
 import ollama
 
-from app.config import COLLECTION_NAME, QDRANT_URL, EMBEDDING_MODEL
+from app.core.config import COLLECTION_NAME, QDRANT_URL, EMBEDDING_MODEL
 
 # --- BM25 index built once at module load time ---
 # We load the same documents.json used for indexing
@@ -37,10 +37,11 @@ def _build_bm25_index():
 BM25_INDEX, ALL_DOCUMENTS = _build_bm25_index()
 
 
-def get_embedding(text: str) -> list[float]:
-    response = ollama.embeddings(model=EMBEDDING_MODEL, prompt=text)
-    return response["embedding"]
+# def get_embedding(text: str) -> list[float]:
+#     response = ollama.embeddings(model=EMBEDDING_MODEL, prompt=text)
+#     return response["embedding"]
 
+from app.rag.embedder import embed as get_embedding
 
 def build_filter(
     origin: str = None,

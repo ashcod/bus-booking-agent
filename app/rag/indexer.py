@@ -16,14 +16,16 @@ EMBEDDING_MODEL = "nomic-embed-text"   # free, runs via Ollama locally
 VECTOR_SIZE = 768                       # nomic-embed-text output dimension
 
 
-def get_embedding(text: str) -> list[float]:
-    """
-    Call Ollama local API to embed a single text.
-    Interview point: in production you'd batch these for speed.
-    Ollama runs the model locally — zero cost, zero API key.
-    """
-    response = ollama.embeddings(model=EMBEDDING_MODEL, prompt=text)
-    return response["embedding"]
+# def get_embedding(text: str) -> list[float]:
+#     """
+#     Call Ollama local API to embed a single text.
+#     Interview point: in production you'd batch these for speed.
+#     Ollama runs the model locally — zero cost, zero API key.
+#     """
+#     response = ollama.embeddings(model=EMBEDDING_MODEL, prompt=text)
+#     return response["embedding"]
+
+from app.rag.embedder import embed as get_embedding
 
 
 def create_collection(client: QdrantClient):
