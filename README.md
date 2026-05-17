@@ -551,7 +551,7 @@ Azure Container Registry
 
 [LinkedIn](https://linkedin.com/in/YOUR_PROFILE) · [GitHub](https://github.com/ashcod)
 
-Open to senior AI Engineer / LLM Engineer roles in Hyderabad and remote.
+Open to senior AI Engineer / LLM Engineer roles
 
 ---
 
