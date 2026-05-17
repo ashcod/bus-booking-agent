@@ -1,0 +1,14 @@
+.venv/
+.git/
+.env
+__pycache__/
+*.pyc
+*.pyo
+.gitignore
+README.md
+screenshots/
+docs/
+evals/
+scripts/
+health_check.py
+busbot_architecture.svg

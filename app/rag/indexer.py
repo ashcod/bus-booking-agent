@@ -10,10 +10,12 @@ from qdrant_client.models import (
 )
 import ollama
 
+
 # --- Configuration ---
 COLLECTION_NAME = "bus_schedules"
 EMBEDDING_MODEL = "nomic-embed-text"   # free, runs via Ollama locally
-VECTOR_SIZE = 768                       # nomic-embed-text output dimension
+import os
+VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", "768"))                   # nomic-embed-text output dimension
 
 
 # def get_embedding(text: str) -> list[float]:
